@@ -10,40 +10,26 @@ const SYMBOLS: [char; 29] = [
 ];
 
 fn main() -> std::io::Result<()> {
-    let dir_path = match env::current_dir() {
-        Ok(current_dir) => current_dir,
-        Err(err) => {
-            eprintln!("error getting current directory: {}", err);
-            std::process::exit(1);
-        }
-    };
-
-    let dir = match fs::read_dir(&dir_path) {
-        Ok(dir) => dir,
-        Err(err) => {
-            eprintln!("error reading dir {}: {}", dir_path.display(), err);
-            std::process::exit(1);
-        }
-    };
+    let dir_path = env::current_dir().expect("error getting current working directory:");
+    let dir = fs::read_dir(&dir_path).expect("error reading current directory");
 
     let mut file_paths: Vec<PathBuf> = Vec::new();
-    for entry in dir {
-        let entry = match entry {
-            Ok(entry) => entry,
+    dir.for_each(|entry| {
+        match entry {
+            Ok(entry) => {
+                if entry.path().is_file() {
+                    file_paths.push(entry.path())
+                }
+            }
             Err(err) => {
                 eprintln!(
                     "error while enumerating dir {}: {}",
                     dir_path.display(),
                     err
                 );
-                continue;
             }
         };
-
-        if entry.path().is_file() {
-            file_paths.push(entry.path())
-        }
-    }
+    });
 
     let mut symbol_counts: HashMap<char, usize> = HashMap::new();
     for path in file_paths {
@@ -54,6 +40,7 @@ fn main() -> std::io::Result<()> {
                 continue;
             }
         };
+
         let mut content = String::new();
         match file.read_to_string(&mut content) {
             Ok(_) => (),
