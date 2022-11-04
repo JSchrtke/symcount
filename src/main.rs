@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::env;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+
+use walkdir::WalkDir;
 
 const SYMBOLS: [char; 29] = [
     '.', ',', '<', '>', '?', '/', '!', '"', '@', '$', '%', '\'', '(', ')', '|', '{', '}', '^', '&',
@@ -11,14 +13,14 @@ const SYMBOLS: [char; 29] = [
 
 fn main() -> std::io::Result<()> {
     let dir_path = env::current_dir().expect("error getting current working directory:");
-    let dir = fs::read_dir(&dir_path).expect("error reading current directory");
+    let dir = WalkDir::new(&dir_path);
 
     let mut file_paths: Vec<PathBuf> = Vec::new();
-    dir.for_each(|entry| {
+    for entry in dir {
         match entry {
             Ok(entry) => {
                 if entry.path().is_file() {
-                    file_paths.push(entry.path())
+                    file_paths.push(entry.path().to_owned())
                 }
             }
             Err(err) => {
@@ -29,7 +31,7 @@ fn main() -> std::io::Result<()> {
                 );
             }
         };
-    });
+    }
 
     let mut symbol_counts: HashMap<char, usize> = HashMap::new();
     for path in file_paths {
