@@ -60,9 +60,11 @@ fn main() -> std::io::Result<()> {
         });
     }
 
-    symbol_counts
-        .iter()
-        .for_each(|count| println!("{}: {}", count.0, count.1));
+    let mut counts = Vec::from_iter(symbol_counts.iter());
+    counts.sort_unstable_by(|a, b| b.1.cmp(a.1));
+    for count in counts {
+        println!("{}: {}", count.0, count.1)
+    }
 
     Ok(())
 }
