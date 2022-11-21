@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
@@ -11,53 +12,23 @@ const SYMBOLS: [char; 29] = [
     '*', '~', '-', '[', ']', '#', '=', '+', ':', '\\',
 ];
 
-fn main() -> std::io::Result<()> {
+fn main() {
     let dir_path = env::current_dir().expect("error getting current working directory:");
     let dir = WalkDir::new(&dir_path);
 
-    let mut file_paths: Vec<PathBuf> = Vec::new();
-    for entry in dir {
-        match entry {
-            Ok(entry) => {
-                if entry.path().is_file() {
-                    file_paths.push(entry.path().to_owned())
-                }
-            }
-            Err(err) => {
-                eprintln!(
-                    "error while enumerating dir {}: {}",
-                    dir_path.display(),
-                    err
-                );
-            }
-        };
-    }
-
     let mut symbol_counts: HashMap<char, usize> = HashMap::new();
-    for path in file_paths {
-        let mut file = match File::open(&path) {
-            Ok(file) => file,
+    let files = filter_files(dir)
+        .unwrap_or_else(|| panic!("found no files in {}", dir_path.to_string_lossy()));
+    for file in files {
+        let content = match read_file_to_string(file) {
+            Ok(content) => content,
             Err(err) => {
-                eprintln!("error opening file {}: {}", path.display(), err);
+                eprintln!("{}", err);
                 continue;
             }
         };
 
-        let mut content = String::new();
-        match file.read_to_string(&mut content) {
-            Ok(_) => (),
-            Err(err) => {
-                eprintln!("error reading from file {}: {}", path.display(), err);
-                continue;
-            }
-        };
-
-        content.chars().filter(is_symbol).for_each(|symbol| {
-            symbol_counts
-                .entry(symbol)
-                .and_modify(|count| *count += 1)
-                .or_insert(1);
-        });
+        count_symbols(content, &mut symbol_counts);
     }
 
     let mut counts = Vec::from_iter(symbol_counts.iter());
@@ -65,10 +36,35 @@ fn main() -> std::io::Result<()> {
     for count in counts {
         println!("{}: {}", count.0, count.1)
     }
-
-    Ok(())
 }
 
-fn is_symbol(c: &char) -> bool {
-    SYMBOLS.contains(c)
+fn filter_files(dir: WalkDir) -> Option<Vec<PathBuf>> {
+    let files: Vec<PathBuf> = dir
+        .into_iter()
+        .filter_map(|maybe_entry| maybe_entry.ok())
+        .filter(|entry| entry.file_type().is_file())
+        .map(|file_entry| file_entry.into_path())
+        .collect();
+
+    if files.is_empty() {
+        None
+    } else {
+        Some(files)
+    }
+}
+
+fn read_file_to_string(path: PathBuf) -> Result<String> {
+    let mut file = File::open(&path)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+    Ok(content)
+}
+
+fn count_symbols(content: String, symbols: &mut HashMap<char, usize>) {
+    for symbol in content.chars().filter(|c| SYMBOLS.contains(c)) {
+        symbols
+            .entry(symbol)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+    }
 }
