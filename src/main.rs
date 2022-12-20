@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::{command, Arg, ArgAction};
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
@@ -12,13 +13,40 @@ const SYMBOLS: [char; 29] = [
     '*', '~', '-', '[', ']', '#', '=', '+', ':', '\\',
 ];
 
+const EXTENSION_ARG_NAME: &str = "extension";
+const EXTENSION_ARG_SHORT_NAME: char = 'e';
+
 fn main() {
+    let args = command!()
+        .arg(
+            Arg::new(EXTENSION_ARG_NAME)
+                .long(EXTENSION_ARG_NAME)
+                .short(EXTENSION_ARG_SHORT_NAME)
+                .action(ArgAction::Append)
+                .required(false),
+        )
+        .get_matches();
+
     let dir_path = env::current_dir().expect("error getting current working directory:");
-    let dir = WalkDir::new(&dir_path);
+    let mut files = filter_files(WalkDir::new(&dir_path))
+        .unwrap_or_else(|| panic!("found no files in {}", dir_path.to_string_lossy()));
+
+    if let Some(extensions) = args.get_many::<String>("extension") {
+        let extensions = extensions
+            .map(|extension| extension.to_string())
+            .collect::<Vec<String>>();
+
+        files.retain(|file| {
+            if let Some(ext) = file.extension() {
+                let ext = ext.to_string_lossy().to_string();
+                extensions.contains(&ext)
+            } else {
+                false
+            }
+        });
+    }
 
     let mut symbol_counts: HashMap<char, usize> = HashMap::new();
-    let files = filter_files(dir)
-        .unwrap_or_else(|| panic!("found no files in {}", dir_path.to_string_lossy()));
     for file in files {
         let content = match read_file_to_string(file) {
             Ok(content) => content,
@@ -54,7 +82,7 @@ fn filter_files(dir: WalkDir) -> Option<Vec<PathBuf>> {
 }
 
 fn read_file_to_string(path: PathBuf) -> Result<String> {
-    let mut file = File::open(&path)?;
+    let mut file = File::open(path)?;
     let mut content = String::new();
     file.read_to_string(&mut content)?;
     Ok(content)
