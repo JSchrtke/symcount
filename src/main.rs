@@ -13,38 +13,23 @@ const SYMBOLS: [char; 29] = [
     '*', '~', '-', '[', ']', '#', '=', '+', ':', '\\',
 ];
 
-const EXTENSION_ARG_NAME: &str = "extension";
-const EXTENSION_ARG_SHORT_NAME: char = 'e';
-
 fn main() {
-    let args = command!()
+    let arg_matches = command!()
         .arg(
-            Arg::new(EXTENSION_ARG_NAME)
-                .long(EXTENSION_ARG_NAME)
-                .short(EXTENSION_ARG_SHORT_NAME)
+            Arg::new("extension")
+                .long("extension")
+                .short('e')
                 .action(ArgAction::Append)
                 .required(false),
         )
         .get_matches();
 
-    let dir_path = env::current_dir().expect("error getting current working directory:");
-    let mut files = filter_files(WalkDir::new(&dir_path))
-        .unwrap_or_else(|| panic!("found no files in {}", dir_path.to_string_lossy()));
-
-    if let Some(extensions) = args.get_many::<String>("extension") {
-        let extensions = extensions
-            .map(|extension| extension.to_string())
-            .collect::<Vec<String>>();
-
-        files.retain(|file| {
-            if let Some(ext) = file.extension() {
-                let ext = ext.to_string_lossy().to_string();
-                extensions.contains(&ext)
-            } else {
-                false
-            }
-        });
-    }
+    let root_dir = env::current_dir().expect("error getting current working directory:");
+    let extensions = arg_matches
+        .get_many("extension")
+        .map(|exts| exts.cloned().collect::<Vec<String>>());
+    let files = filter_files(WalkDir::new(&root_dir), extensions)
+        .unwrap_or_else(|| panic!("found no files in {}", root_dir.to_string_lossy()));
 
     let mut symbol_counts: HashMap<char, usize> = HashMap::new();
     for file in files {
@@ -66,13 +51,20 @@ fn main() {
     }
 }
 
-fn filter_files(dir: WalkDir) -> Option<Vec<PathBuf>> {
-    let files: Vec<PathBuf> = dir
+fn filter_files(root_dir: WalkDir, extensions: Option<Vec<String>>) -> Option<Vec<PathBuf>> {
+    let mut files: Vec<PathBuf> = root_dir
         .into_iter()
         .filter_map(|maybe_entry| maybe_entry.ok())
         .filter(|entry| entry.file_type().is_file())
         .map(|file_entry| file_entry.into_path())
         .collect();
+
+    if let Some(extensions) = extensions {
+        files.retain(|file| match file.extension() {
+            Some(file_ext) => extensions.contains(&file_ext.to_string_lossy().to_string()),
+            None => false,
+        });
+    }
 
     if files.is_empty() {
         None
