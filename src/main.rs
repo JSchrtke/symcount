@@ -22,6 +22,13 @@ fn main() {
                 .action(ArgAction::Append)
                 .required(false),
         )
+        .arg(
+            Arg::new("verbose")
+                .long("verbose")
+                .short('v')
+                .action(ArgAction::SetTrue)
+                .required(false),
+        )
         .get_matches();
 
     let root_dir = env::current_dir().expect("error getting current working directory:");
@@ -31,12 +38,18 @@ fn main() {
     let files = filter_files(WalkDir::new(&root_dir), extensions)
         .unwrap_or_else(|| panic!("found no files in {}", root_dir.to_string_lossy()));
 
+    // NOTE: unwrapping here is fine, the clap API guarantees that the flag is always present in
+    // the matches when using the 'ArgAction::SetTrue'
+    let verbose = *arg_matches.get_one::<bool>("verbose").unwrap();
+
     let mut symbol_counts: HashMap<char, usize> = HashMap::new();
     for file in files {
         let content = match read_file_to_string(file) {
             Ok(content) => content,
             Err(err) => {
-                eprintln!("{}", err);
+                if verbose {
+                    eprintln!("{}", err);
+                }
                 continue;
             }
         };
