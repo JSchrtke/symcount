@@ -5,13 +5,34 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-
+use std::process::exit;
 use walkdir::WalkDir;
 
 const SYMBOLS: [char; 29] = [
     '.', ',', '<', '>', '?', '/', '!', '"', '@', '$', '%', '\'', '(', ')', '|', '{', '}', '^', '&',
     '*', '~', '-', '[', ']', '#', '=', '+', ':', '\\',
 ];
+
+trait ToString {
+    fn to_string(&self) -> String;
+}
+
+impl ToString for Vec<String> {
+    fn to_string(&self) -> String {
+        if self.len() == 1 {
+            return self.first().unwrap().to_owned();
+        }
+
+        let mut res = String::new();
+        for s in self.iter().take(self.len() - 1) {
+            res.push_str(s);
+            res.push_str(", ");
+        }
+        res.push_str(self.last().unwrap());
+
+        res
+    }
+}
 
 fn main() {
     let arg_matches = command!()
@@ -35,8 +56,27 @@ fn main() {
     let extensions = arg_matches
         .get_many("extension")
         .map(|exts| exts.cloned().collect::<Vec<String>>());
-    let files = filter_files(WalkDir::new(&root_dir), extensions)
-        .unwrap_or_else(|| panic!("found no files in {}", root_dir.to_string_lossy()));
+
+    let files = match filter_files(WalkDir::new(&root_dir), &extensions) {
+        Some(files) => files,
+        None => {
+            if let Some(extensions) = extensions {
+                let mut extension_word = "extension";
+                if extensions.len() > 1 {
+                    extension_word = "extensions";
+                }
+                println!(
+                    "No files with the {} '{}' found in '{}'",
+                    extension_word,
+                    extensions.to_string(),
+                    root_dir.to_string_lossy()
+                );
+            } else {
+                println!("No files found in '{}'", root_dir.to_string_lossy());
+            }
+            exit(0);
+        }
+    };
 
     // NOTE: unwrapping here is fine, the clap API guarantees that the flag is always present in
     // the matches when using the 'ArgAction::SetTrue'
@@ -64,7 +104,7 @@ fn main() {
     }
 }
 
-fn filter_files(root_dir: WalkDir, extensions: Option<Vec<String>>) -> Option<Vec<PathBuf>> {
+fn filter_files(root_dir: WalkDir, extensions: &Option<Vec<String>>) -> Option<Vec<PathBuf>> {
     let mut files: Vec<PathBuf> = root_dir
         .into_iter()
         .filter_map(|maybe_entry| maybe_entry.ok())
