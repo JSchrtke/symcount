@@ -9,5 +9,5 @@ license = "MIT"
 [dependencies]
 anyhow = "1.0.66"
 clap = { version = "4.0.29", features = ["derive", "cargo"] }
-walkdir = "2.3.2"
 itertools = "0.10.5"
+ignore = "0.4.18"

@@ -5,7 +5,6 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use itertools::intersperse;
-use walkdir::WalkDir;
 
 pub trait ToString {
     fn to_string(&self) -> String;
@@ -56,11 +55,14 @@ mod to_string_trait_tests {
     }
 }
 
-pub fn filter_files(root_dir: WalkDir, extensions: &Option<Vec<String>>) -> Option<Vec<PathBuf>> {
+pub fn filter_files(
+    root_dir: ignore::Walk,
+    extensions: &Option<Vec<String>>,
+) -> Option<Vec<PathBuf>> {
     let mut files: Vec<PathBuf> = root_dir
         .into_iter()
         .filter_map(|maybe_entry| maybe_entry.ok())
-        .filter(|entry| entry.file_type().is_file())
+        .filter(|entry| entry.path().is_file())
         .map(|file_entry| file_entry.into_path())
         .collect();
 

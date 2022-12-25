@@ -1,9 +1,9 @@
 use clap::{command, Arg, ArgAction};
+use ignore::Walk;
 use std::collections::HashMap;
 use std::env;
 use std::process::exit;
 use symcount::{count_symbols, filter_files, read_file_to_string, ToString};
-use walkdir::WalkDir;
 
 fn main() {
     let arg_matches = command!()
@@ -28,7 +28,7 @@ fn main() {
         .get_many("extension")
         .map(|exts| exts.cloned().collect::<Vec<String>>());
 
-    let files = match filter_files(WalkDir::new(&root_dir), &extensions) {
+    let files = match filter_files(Walk::new(&root_dir), &extensions) {
         Some(files) => files,
         None => {
             if let Some(extensions) = extensions {
