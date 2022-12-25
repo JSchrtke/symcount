@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{command, Arg, ArgAction};
+use itertools::intersperse;
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
@@ -19,18 +20,11 @@ trait ToString {
 
 impl ToString for Vec<String> {
     fn to_string(&self) -> String {
-        if self.len() == 1 {
-            return self.first().unwrap().to_owned();
+        match self.len() {
+            0 => String::from(""),
+            1 => self.first().unwrap().to_owned(),
+            _ => intersperse(self.clone(), String::from(", ")).collect::<String>(),
         }
-
-        let mut res = String::new();
-        for s in self.iter().take(self.len() - 1) {
-            res.push_str(s);
-            res.push_str(", ");
-        }
-        res.push_str(self.last().unwrap());
-
-        res
     }
 }
 
@@ -139,5 +133,40 @@ fn count_symbols(content: String, symbols: &mut HashMap<char, usize>) {
             .entry(symbol)
             .and_modify(|count| *count += 1)
             .or_insert(1);
+    }
+}
+
+#[cfg(test)]
+mod to_string_trait_tests {
+    use crate::ToString;
+
+    #[test]
+    fn empty_vec_returns_empty_string() {
+        assert!(*"" == Vec::new().to_string());
+    }
+
+    #[test]
+    fn only_one_element_returns_that_element() {
+        assert_eq!(
+            String::from("first"),
+            vec![String::from("first")].to_string()
+        );
+    }
+
+    #[test]
+    fn multiple_elements_get_joined_by_comma_and_space() {
+        assert_eq!(
+            String::from("first, second"),
+            vec![String::from("first"), String::from("second")].to_string()
+        );
+        assert_eq!(
+            String::from("first, second, third"),
+            vec![
+                String::from("first"),
+                String::from("second"),
+                String::from("third")
+            ]
+            .to_string()
+        );
     }
 }
