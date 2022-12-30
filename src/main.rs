@@ -1,5 +1,4 @@
 use clap::{command, Arg, ArgAction};
-use ignore::Walk;
 use std::collections::HashMap;
 use std::env;
 use std::process::exit;
@@ -28,7 +27,7 @@ fn main() {
         .get_many("extension")
         .map(|exts| exts.cloned().collect::<Vec<String>>());
 
-    let files = match filter_files(Walk::new(&root_dir), &extensions) {
+    let files = match filter_files(&root_dir, &extensions) {
         Some(files) => files,
         None => {
             if let Some(extensions) = extensions {

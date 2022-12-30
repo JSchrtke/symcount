@@ -1,4 +1,5 @@
 use anyhow::Result;
+use ignore::WalkBuilder;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -58,11 +59,15 @@ mod to_string_trait_tests {
     }
 }
 
-pub fn filter_files(
-    root_dir: ignore::Walk,
-    extensions: &Option<Vec<String>>,
-) -> Option<Vec<PathBuf>> {
-    let mut files: Vec<PathBuf> = root_dir
+pub fn filter_files(root_dir: &PathBuf, extensions: &Option<Vec<String>>) -> Option<Vec<PathBuf>> {
+    let include_ignored = extensions.is_none();
+
+    let dir_walker = WalkBuilder::new(root_dir)
+        .git_ignore(include_ignored)
+        .ignore(include_ignored)
+        .build();
+
+    let mut files: Vec<PathBuf> = dir_walker
         .into_iter()
         .filter_map(|maybe_entry| maybe_entry.ok())
         .filter(|entry| entry.path().is_file())
@@ -80,6 +85,45 @@ pub fn filter_files(
         None
     } else {
         Some(files)
+    }
+}
+
+#[cfg(test)]
+mod filter_files_tests {
+    use crate::filter_files;
+    use std::path::PathBuf;
+
+    #[test]
+    fn ignores_files_in_ignore_lists() {
+        let expected_files: Option<Vec<std::path::PathBuf>> = Some(vec![
+            PathBuf::from("test-dir/file.a"),
+            PathBuf::from("test-dir/file.b"),
+            PathBuf::from("test-dir/file.c"),
+        ]);
+        let actual_files = filter_files(&PathBuf::from("test-dir"), &None);
+        assert_eq!(expected_files, actual_files);
+    }
+
+    #[test]
+    fn only_includes_given_extensions() {
+        let extensions = Some(vec![String::from("a"), String::from("b")]);
+        let expected_files: Option<Vec<std::path::PathBuf>> = Some(vec![
+            PathBuf::from("test-dir/file.a"),
+            PathBuf::from("test-dir/file.b"),
+        ]);
+        let actual_files = filter_files(&PathBuf::from("test-dir"), &extensions);
+        assert_eq!(expected_files, actual_files);
+    }
+
+    #[test]
+    fn can_include_ignored_file_types() {
+        let extensions = Some(vec![String::from("gitignored"), String::from("ignored")]);
+        let expected_files: Option<Vec<std::path::PathBuf>> = Some(vec![
+            PathBuf::from("test-dir/file.gitignored"),
+            PathBuf::from("test-dir/file.ignored"),
+        ]);
+        let actual_files = filter_files(&PathBuf::from("test-dir"), &extensions);
+        assert_eq!(expected_files, actual_files);
     }
 }
 
