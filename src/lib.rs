@@ -14,7 +14,10 @@ impl ToString for Vec<String> {
     fn to_string(&self) -> String {
         match self.len() {
             0 => String::from(""),
-            1 => self.first().unwrap().to_owned(),
+            1 => self
+                .first()
+                .expect("The match experession guarantees that the length is at least 1")
+                .to_owned(),
             _ => intersperse(self.clone(), String::from(", ")).collect::<String>(),
         }
     }

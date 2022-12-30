@@ -49,9 +49,11 @@ fn main() {
         }
     };
 
-    // NOTE: unwrapping here is fine, the clap API guarantees that the flag is always present in
-    // the matches when using the 'ArgAction::SetTrue'
-    let verbose = *arg_matches.get_one::<bool>("verbose").unwrap();
+    let verbose = *arg_matches.get_one::<bool>("verbose").expect(
+        "This should never return a 'None', since the 'verbose' argument is create with the
+        'ArgAction::SetTrue'. The clap API guarantees that there is always a return value when
+        using that particular arg action",
+    );
 
     let mut symbol_counts: HashMap<char, usize> = HashMap::new();
     for file in files {
