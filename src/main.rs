@@ -50,9 +50,9 @@ fn main() {
     };
 
     let verbose = *arg_matches.get_one::<bool>("verbose").expect(
-        "This should never return a 'None', since the 'verbose' argument is create with the
+        "This should never return a 'None', since the 'verbose' argument is created with the
         'ArgAction::SetTrue'. The clap API guarantees that there is always a return value when
-        using that particular arg action",
+        using that particular arg action.",
     );
 
     let mut symbol_counts: HashMap<char, usize> = HashMap::new();
