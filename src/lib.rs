@@ -1,11 +1,12 @@
 use anyhow::Result;
 use ignore::WalkBuilder;
+use std::char;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 
-use itertools::intersperse;
+use itertools::{intersperse, Itertools};
 
 pub trait ToString {
     fn to_string(&self) -> String;
@@ -141,9 +142,9 @@ pub fn read_file_to_string(path: PathBuf) -> Result<String> {
     Ok(content)
 }
 
-pub const SYMBOLS: [char; 29] = [
+pub const SYMBOLS: [char; 30] = [
     '.', ',', '<', '>', '?', '/', '!', '"', '@', '$', '%', '\'', '(', ')', '|', '{', '}', '^', '&',
-    '*', '~', '-', '[', ']', '#', '=', '+', ':', '\\',
+    '*', '~', '-', '[', ']', '#', '=', '+', ':', '\\', ';',
 ];
 
 pub fn count_symbols(content: String, symbols: &mut HashMap<char, usize>) {
@@ -152,5 +153,91 @@ pub fn count_symbols(content: String, symbols: &mut HashMap<char, usize>) {
             .entry(symbol)
             .and_modify(|count| *count += 1)
             .or_insert(1);
+    }
+}
+
+pub fn count_symbol_bigrams(input: &str) -> Option<HashMap<String, u32>> {
+    if input.is_empty() {
+        return None;
+    }
+
+    let chunks = input.chars().chunks(2);
+    let mut bigrams = Vec::new();
+    for mut chunk in &chunks {
+        let a = chunk.next().expect("since we check for empty once, even if just one element is given, this one is always gonna exist");
+        if !SYMBOLS.contains(&a) {
+            continue;
+        }
+
+        let b = match chunk.next() {
+            Some(char) => char,
+            None => continue,
+        };
+        if !SYMBOLS.contains(&b) {
+            continue;
+        }
+
+        if a == b {
+            return None;
+        }
+        let bigram = a.to_string() + &b.to_string();
+        bigrams.push(bigram);
+    }
+
+    let mut bigram_counts: HashMap<String, u32> = HashMap::new();
+    for bigram in bigrams {
+        bigram_counts
+            .entry(bigram)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+    }
+
+    if bigram_counts.is_empty() {
+        None
+    } else {
+        Some(bigram_counts)
+    }
+}
+
+#[cfg(test)]
+mod count_bigrams_tests {
+    use std::collections::HashMap;
+
+    use crate::count_symbol_bigrams;
+
+    #[test]
+    fn empty_string_contains_no_bigrams() {
+        let input = String::from("");
+        assert_eq!(None, count_symbol_bigrams(&input));
+    }
+
+    #[test]
+    fn two_symbols_in_sequence_are_bigram() {
+        let input = String::from(";/");
+        let mut expected_map: HashMap<String, u32> = HashMap::new();
+        expected_map.insert(input.to_owned(), 1);
+        let expected = Some(expected_map);
+        assert_eq!(expected, count_symbol_bigrams(&input));
+    }
+
+    #[test]
+    fn multiple_bigrams_in_one_string() {
+        let input = String::from(";/;/");
+        let mut expected_map: HashMap<String, u32> = HashMap::new();
+        expected_map.insert(input[0..2].to_string(), 2);
+        let expected = Some(expected_map);
+        assert_eq!(expected, count_symbol_bigrams(&input));
+    }
+
+    #[test]
+    fn repeating_single_symbol_is_no_bigram() {
+        let input = String::from(";;");
+        assert_eq!(None, count_symbol_bigrams(&input));
+    }
+
+    #[test]
+    fn symbols_that_are_separated_by_non_symbol_are_no_bigram() {
+        let input = String::from(";a;");
+        assert_eq!(None, count_symbol_bigrams(&input));
     }
 }
