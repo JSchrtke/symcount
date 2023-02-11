@@ -7,6 +7,8 @@ use std::path::PathBuf;
 
 use itertools::intersperse;
 
+mod bigrams;
+
 pub trait ToString {
     fn to_string(&self) -> String;
 }
