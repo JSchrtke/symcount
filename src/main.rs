@@ -5,6 +5,8 @@ use std::process::exit;
 use symcount::{count_symbols, filter_files, read_file_to_string, ToString};
 
 fn main() {
+    let root_dir = env::current_dir().expect("error getting current working directory:");
+
     let arg_matches = command!()
         .arg(
             Arg::new("extension")
@@ -22,7 +24,6 @@ fn main() {
         )
         .get_matches();
 
-    let root_dir = env::current_dir().expect("error getting current working directory:");
     let extensions = arg_matches
         .get_many("extension")
         .map(|exts| exts.cloned().collect::<Vec<String>>());
